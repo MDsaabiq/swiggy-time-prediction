@@ -8,3 +8,6 @@ lightgbm
 fastapi
 uvicorn
 joblib
+pytest
+dvc_s3
+fastapi

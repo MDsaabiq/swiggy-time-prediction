@@ -1,0 +1,51 @@
+name: CI-CD
+
+on: push
+
+jobs:
+  CI-CD:
+    runs-on: ubuntu-latest
+    
+    # 1. Define all environment variables here so every step can use them
+    env:
+      MLFLOW_TRACKING_USERNAME: saabiqcs
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+      MLFLOW_TRACKING_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.13' 
+          cache: 'pip' 
+
+      - name: Install Packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: DVC Pull (S3 remote)
+        run: |
+          # AWS credentials are required to pull from an S3 bucket
+          dvc remote modify myremote --local access_key_id "${AWS_ACCESS_KEY_ID}"
+          dvc remote modify myremote --local secret_access_key "${AWS_SECRET_ACCESS_KEY}"
+          dvc pull -r myremote || echo "Some files are missing in DVC remote!"
+          dvc checkout --force || echo "Some files may not have checked out properly!"
+
+      - name: Test Model Registry
+        run: |
+          pytest tests/test_model_registry.py
+
+      - name: Test Model Performance
+        run: |
+          pytest tests/test_model_perf.py
+
+      - name: Promote Model
+        if: success()
+        run: |
+          python scripts/promote_model_to_prod.py

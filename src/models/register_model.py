@@ -51,12 +51,30 @@ if __name__ == "__main__":
     # get the run id
     run_id = run_info["run_id"]
     model_name = run_info["model_name"]
-    artifact_path = run_info["artifact_path"]
-    
-    # model source path inside the tracked run artifacts
-    model_source = f"{artifact_path.rstrip('/')}/{model_name}"
-    
+
     client = MlflowClient()
+
+    experiment = client.get_experiment_by_name("DVC Pipeline")
+    if experiment is None:
+        raise MlflowException("Could not find experiment 'DVC Pipeline'")
+
+    logged_models = client.search_logged_models([experiment.experiment_id])
+    logged_model = next(
+        (
+            model
+            for model in logged_models
+            if model.source_run_id == run_id and model.name == model_name
+        ),
+        None,
+    )
+
+    if logged_model is None:
+        raise MlflowException(
+            f"Could not find a logged model for run {run_id} and model {model_name}"
+        )
+
+    model_source = logged_model.model_uri
+    
     try:
         client.create_registered_model(model_name)
     except MlflowException:

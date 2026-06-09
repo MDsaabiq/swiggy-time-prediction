@@ -82,11 +82,11 @@ client = MlflowClient()
 model_name = load_model_information("run_information.json")['model_name']
 
 # stage of the model
-stage = "Stating"
+stage = "Staging"
 
 # get the latest model version
-# latest_model_ver = client.get_latest_versions(name=model_name,stages=[stage])
-# print(f"Latest model in production is version {latest_model_ver[0].version}")
+latest_model_ver = client.get_latest_versions(name=model_name,stages=[stage])
+print(f"Latest model in production is version {latest_model_ver[0].version}")
 
 # load model path
 model_path = f"models:/{model_name}/{stage}"
