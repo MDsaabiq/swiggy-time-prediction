@@ -15,7 +15,6 @@ set_config(transform_output='pandas')
 
 # initialize dagshub
 import dagshub
-import mlflow.client
 
 dagshub.init(repo_owner='saabiqcs', repo_name='swiggy-time-prediction', mlflow=True)
 
@@ -65,49 +64,24 @@ client = MlflowClient()
 # load the model info to get the model name
 model_name = load_model_information("run_information.json")['model_name']
 
-# stage of the model
-stage = "Production"
-
-# --- NEW ROBUST MODEL LOADING BLOCK ---
 try:
-    print(f"Querying DagsHub registry for model name: '{model_name}'...")
-    
-    # 1. Fetch ALL latest versions across ALL stages
-    all_versions = client.get_latest_versions(name=model_name)
-    
+    all_versions = client.search_model_versions(f"name='{model_name}'")
     if not all_versions:
-        raise Exception(f"The model name '{model_name}' does not exist in your DagsHub registry at all!")
-    
-    print("Found the following versions in your registry:")
-    for mv in all_versions:
-        print(f"  -> Version: {mv.version} | Current Stage: '{mv.current_stage}'")
-    
-    # 2. Look for the version that matches your target stage
-    target_version = None
-    for mv in all_versions:
-        if mv.current_stage.strip().lower() == stage.strip().lower():
-            target_version = mv.version
-            break
-            
-    # 3. Smart Fallback: If stage is empty, grab the absolute latest version available
-    if not target_version:
-        target_version = all_versions[0].version
-        print(f"Warning: No model found in stage '{stage}'. Falling back to latest available version: {target_version}")
-    else:
-        print(f"Success: Found version {target_version} matching stage '{stage}'")
+        raise Exception(f"No versions found for model '{model_name}' in registry")
 
-    model_path = f"models:/{model_name}/{target_version}"
+    # prefer Production stage, fallback to latest version
+    prod_versions = [v for v in all_versions if v.current_stage == "Production"]
+    target_version = prod_versions[0].version if prod_versions else \
+        sorted(all_versions, key=lambda v: int(v.version), reverse=True)[0].version
 
-    # 4. Load the model from the determined path
-    print(f"Loading model from path: {model_path} ...")
-    model = mlflow.sklearn.load_model(model_path)
-    print("Model loaded into memory successfully!")
+    print(f"Loading model version {target_version}...")
+    model = mlflow.sklearn.load_model(f"models:/{model_name}/{target_version}")
+    print("Model loaded successfully!")
 
 except Exception as e:
     import sys
     print(f"CRITICAL REGISTRY ERROR: {e}")
-    sys.exit(1) # Stop the container safely to log the error cleanly
-# ---------------------------------------
+    sys.exit(1)
 
 # load the preprocessor
 preprocessor_path = "models/preprocessor.joblib"
@@ -161,3 +135,8 @@ def do_predictions(data: Data):
 
 if __name__ == "__main__":
     uvicorn.run(app="app:app", host="0.0.0.0", port=8000)
+
+
+
+
+

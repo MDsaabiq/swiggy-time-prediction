@@ -26,6 +26,8 @@ docker run -d \
   --name delivery_time_pred \
   --restart unless-stopped \
   -e DAGSHUB_USER_TOKEN=0cf1301f969792de31650f37e14a5f4f446e911a \
+  -e MLFLOW_TRACKING_USERNAME=saabiqcs \
+  -e MLFLOW_TRACKING_PASSWORD=0cf1301f969792de31650f37e14a5f4f446e911a \
   682844365170.dkr.ecr.ap-south-1.amazonaws.com/time-prediction-system:latest
 
 echo "Container started successfully."
