@@ -17,8 +17,6 @@ RUN pip install -r requirements_docker.txt
 COPY app.py ./
 COPY ./models/preprocessor.joblib ./models/preprocessor.joblib
 COPY ./scripts/data_clean_utils.py ./scripts/data_clean_utils.py
-COPY ./templates ./templates
-COPY ./static ./static
 COPY ./run_information.json ./
 
 # expose the port
