@@ -66,3 +66,24 @@ jobs:
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: Zip files for deployment
+        if: success()
+        run: |
+          zip -r deployment.zip appspec.yml deploy/scripts/install_dependencies.sh deploy/scripts/start_docker.sh
+
+      - name: Upload ZIP to S3
+        if: success()
+        run: |
+          aws s3 cp deployment.zip s3://deliverytimepredictiondeploymentbysaabiq/deployment.zip
+
+      - name: Deploy to AWS CodeDeploy
+        if: success()
+        run: |
+          aws deploy create-deployment \
+            --application-name delivery-time-predicition-app \
+            --deployment-config-name CodeDeployDefault.OneAtATime \
+            --deployment-group-name delivery-time-prediction-grp \
+            --s3-location bucket=deliverytimepredictiondeploymentbysaabiq,key=deployment.zip,bundleType=zip \
+            --file-exists-behavior OVERWRITE \
+            --region ap-south-1
