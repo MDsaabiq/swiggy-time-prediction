@@ -18,7 +18,6 @@ def load_model_information(file_path):
 # set model name
 run_info = load_model_information("run_information.json")
 model_name = run_info["model_name"]
-run_id = run_info["run_id"]
 
 
 
@@ -29,8 +28,8 @@ def test_load_model_from_registry():
 
     assert latest_version is not None, f"No registered model found for {model_name}"
 
-    # load the model logged by the current run
-    model_path = f"runs:/{run_id}/delivery_time_pred_model"
+    # load the model from the model registry
+    model_path = f"models:/{model_name}/Staging"
 
     # load the latest model artifact
     model = mlflow.sklearn.load_model(model_path)
