@@ -75,6 +75,9 @@ target/
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 
+# DVC-generated experiment metadata
+run_information.json
+
 
 # Mac OS-specific storage files
 .DS_Store

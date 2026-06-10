@@ -1,0 +1,8 @@
+fastapi[standard]
+scikit-learn == 1.9.0
+pandas
+numpy
+mlflow == 3.13.0
+joblib
+dagshub == 0.7.0
+lightgbm
