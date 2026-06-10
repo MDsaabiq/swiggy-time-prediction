@@ -22,7 +22,6 @@ dagshub.init(repo_owner='saabiqcs', repo_name='swiggy-time-prediction', mlflow=T
 # set the tracking server
 mlflow.set_tracking_uri("https://dagshub.com/saabiqcs/swiggy-time-prediction.mlflow")
 
-
 class Data(BaseModel):  
     ID: str
     Delivery_person_ID: str
@@ -44,38 +43,23 @@ class Data(BaseModel):
     Festival: str
     City: str
 
-    
-    
 def load_model_information(file_path):
     with open(file_path) as f:
         run_info = json.load(f)
-        
     return run_info
-
 
 def load_transformer(transformer_path):
     transformer = joblib.load(transformer_path)
     return transformer
 
-
-
 # columns to preprocess in data
-num_cols = ["age",
-            "ratings",
-            "pickup_time_minutes",
-            "distance"]
+num_cols = ["age", "ratings", "pickup_time_minutes", "distance"]
 
-nominal_cat_cols = ['weather',
-                    'type_of_order',
-                    'type_of_vehicle',
-                    "festival",
-                    "city_type",
-                    "is_weekend",
-                    "order_time_of_day"]
+nominal_cat_cols = ['weather', 'type_of_order', 'type_of_vehicle', "festival", "city_type", "is_weekend", "order_time_of_day"]
 
-ordinal_cat_cols = ["traffic","distance_type"]
+ordinal_cat_cols = ["traffic", "distance_type"]
 
-#mlflow client
+# mlflow client
 client = MlflowClient()
 
 # load the model info to get the model name
@@ -84,15 +68,46 @@ model_name = load_model_information("run_information.json")['model_name']
 # stage of the model
 stage = "Production"
 
-# get the latest model version
-latest_model_ver = client.get_latest_versions(name=model_name,stages=[stage])
-print(f"Latest model in production is version {latest_model_ver[0].version}")
+# --- NEW ROBUST MODEL LOADING BLOCK ---
+try:
+    print(f"Querying DagsHub registry for model name: '{model_name}'...")
+    
+    # 1. Fetch ALL latest versions across ALL stages
+    all_versions = client.get_latest_versions(name=model_name)
+    
+    if not all_versions:
+        raise Exception(f"The model name '{model_name}' does not exist in your DagsHub registry at all!")
+    
+    print("Found the following versions in your registry:")
+    for mv in all_versions:
+        print(f"  -> Version: {mv.version} | Current Stage: '{mv.current_stage}'")
+    
+    # 2. Look for the version that matches your target stage
+    target_version = None
+    for mv in all_versions:
+        if mv.current_stage.strip().lower() == stage.strip().lower():
+            target_version = mv.version
+            break
+            
+    # 3. Smart Fallback: If stage is empty, grab the absolute latest version available
+    if not target_version:
+        target_version = all_versions[0].version
+        print(f"Warning: No model found in stage '{stage}'. Falling back to latest available version: {target_version}")
+    else:
+        print(f"Success: Found version {target_version} matching stage '{stage}'")
 
-# load model path
-model_path = f"models:/{model_name}/{stage}"
+    model_path = f"models:/{model_name}/{target_version}"
 
-# load the latest model from model registry
-model = mlflow.sklearn.load_model(model_path)
+    # 4. Load the model from the determined path
+    print(f"Loading model from path: {model_path} ...")
+    model = mlflow.sklearn.load_model(model_path)
+    print("Model loaded into memory successfully!")
+
+except Exception as e:
+    import sys
+    print(f"CRITICAL REGISTRY ERROR: {e}")
+    sys.exit(1) # Stop the container safely to log the error cleanly
+# ---------------------------------------
 
 # load the preprocessor
 preprocessor_path = "models/preprocessor.joblib"
@@ -100,8 +115,8 @@ preprocessor = load_transformer(preprocessor_path)
 
 # build the model pipeline
 model_pipe = Pipeline(steps=[
-    ('preprocess',preprocessor),
-    ("regressor",model)
+    ('preprocess', preprocessor),
+    ("regressor", model)
 ])
 
 # create the app
@@ -135,7 +150,7 @@ def do_predictions(data: Data):
         'multiple_deliveries': data.multiple_deliveries,
         'Festival': data.Festival,
         'City': data.City
-        },index=[0]
+        }, index=[0]
     )
     # clean the raw input data
     cleaned_data = perform_data_cleaning(pred_data)
@@ -143,7 +158,6 @@ def do_predictions(data: Data):
     predictions = model_pipe.predict(cleaned_data)[0]
 
     return predictions
-   
-   
+
 if __name__ == "__main__":
-    uvicorn.run(app="app:app",host="0.0.0.0",port=8000)
+    uvicorn.run(app="app:app", host="0.0.0.0", port=8000)
