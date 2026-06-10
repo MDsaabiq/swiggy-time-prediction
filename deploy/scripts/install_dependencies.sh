@@ -19,7 +19,7 @@ sudo apt-get install -y unzip curl
 # Download and install AWS CLI
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/home/ubuntu/awscliv2.zip"
 unzip -o /home/ubuntu/awscliv2.zip -d /home/ubuntu/
-sudo /home/ubuntu/aws/install
+sudo /home/ubuntu/aws/install --update
 
 # Add 'ubuntu' user to the 'docker' group to run Docker commands without 'sudo'
 sudo usermod -aG docker ubuntu
